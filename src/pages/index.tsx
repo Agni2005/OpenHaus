@@ -513,7 +513,7 @@ export default function Home() {
                 <textarea
                   id="description"
                   name="description"
-                  rows="3"
+                  rows={3}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                   placeholder="Tell people about your event..."
                   value={newEvent.description}
