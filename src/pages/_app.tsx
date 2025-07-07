@@ -10,7 +10,6 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <ClerkProvider
       appearance={{ variables: { colorPrimary: "#7e22ce" } }}
-      navigate={(to) => window.history.pushState(null, "", to)}
     >
       <Component {...pageProps} />
     </ClerkProvider>
