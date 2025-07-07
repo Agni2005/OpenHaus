@@ -9,8 +9,29 @@ import {
   useUser
 } from '@clerk/nextjs';
 
-// Mock data with more realistic dates
-const mockEvents = [
+interface Event {
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  host: string;
+  tags: string[];
+  image: string;
+  attendees: number;
+}
+
+interface NewEvent {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  tags: string;
+  description: string;
+  image: string;
+}
+
+const mockEvents: Event[] = [
   {
     id: 1,
     title: "Rooftop Jazz Night",
@@ -86,8 +107,7 @@ export default function Home() {
   const [isHostModalOpen, setIsHostModalOpen] = useState(false);
   const { isSignedIn, user } = useUser();
   
-  // Form state for hosting new event
-  const [newEvent, setNewEvent] = useState({
+  const [newEvent, setNewEvent] = useState<NewEvent>({
     title: '',
     date: '',
     time: '',
@@ -101,10 +121,8 @@ export default function Home() {
     setMounted(true);
   }, []);
 
-  // Get unique categories from events
   const categories = ['all', ...new Set(mockEvents.flatMap(event => event.tags))];
 
-  // Filter events based on search and category
   const filteredEvents = mockEvents.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.location.toLowerCase().includes(searchTerm.toLowerCase());
@@ -114,23 +132,22 @@ export default function Home() {
 
   const handleHostEvent = () => {
     if (!isSignedIn) {
-      document.getElementById('sign-in-button')?.click();
+      const signInButton = document.getElementById('sign-in-button');
+      if (signInButton) signInButton.click();
       return;
     }
     setIsHostModalOpen(true);
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setNewEvent(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmitEvent = (e) => {
+  const handleSubmitEvent = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would submit to an API
     console.log('New event submitted:', newEvent);
     setIsHostModalOpen(false);
-    // Reset form
     setNewEvent({
       title: '',
       date: '',
@@ -141,11 +158,13 @@ export default function Home() {
       image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=800&h=600&fit=crop'
     });
     
-    // Show success toast
-    document.getElementById('success-toast').classList.remove('hidden');
-    setTimeout(() => {
-      document.getElementById('success-toast').classList.add('hidden');
-    }, 3000);
+    const toast = document.getElementById('success-toast');
+    if (toast) {
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
   };
 
   if (!mounted) return null;
@@ -189,12 +208,10 @@ export default function Home() {
                 </svg>
               </button>
               
-              {/* Clerk User Button */}
               <SignedIn>
                 <UserButton afterSignOutUrl="/" />
               </SignedIn>
               
-              {/* Sign In Button (hidden but triggered programmatically) */}
               <SignInButton mode="modal">
                 <button id="sign-in-button" className="hidden"></button>
               </SignInButton>
