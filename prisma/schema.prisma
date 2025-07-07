@@ -1,0 +1,206 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enums for type safety
+enum EventType {
+  COFFEE_MEETUP
+  MOVIE_NIGHT
+  DAY_TRIP
+  HOUSE_PARTY
+  GAME_NIGHT
+  FOOD_ADVENTURE
+  SPORTS
+  LEARNING
+  OTHER
+}
+
+enum RSVPStatus {
+  GOING
+  INTERESTED
+  NOT_GOING
+}
+
+enum UserVerificationStatus {
+  UNVERIFIED
+  EMAIL_VERIFIED
+  PHONE_VERIFIED
+  FULLY_VERIFIED
+}
+
+// Core Models
+model User {
+  id                  String        @id @default(cuid())
+  clerkId             String        @unique
+  email               String        @unique
+  username            String?       @unique
+  name                String?
+  bio                 String?
+  avatarUrl           String?
+  city                String?
+  interests           String[]      // e.g., ["Hiking", "Movies", "Food"]
+  verificationStatus  UserVerificationStatus @default(UNVERIFIED)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  hostedEvents        Event[]
+  rsvps               RSVP[]
+  reviewsWritten      Review[]      @relation("Reviewer")
+  reviewsReceived     Review[]      @relation("Reviewee")
+  sentMessages        Message[]     @relation("SentMessages")
+  receivedMessages    Message[]     @relation("ReceivedMessages")
+  friendshipsInitiated Friendship[] @relation("RequesterFriendships")
+  friendshipsReceived Friendship[] @relation("RecipientFriendships")
+  blockedByUsers      BlockedUser[] @relation("BlockerRelation")
+  blockedUsers        BlockedUser[] @relation("BlockedUserRelation")
+  reports             Report[]      @relation("ReporterRelation")
+  reportedByUsers     Report[]      @relation("ReportedUserRelation")
+  eventChats          EventChat[]
+
+  // Indexes
+  @@index([city, verificationStatus])
+  @@index([clerkId])
+}
+
+model Event {
+  id                  String        @id @default(cuid())
+  title               String
+  description         String
+  type                EventType
+  date                DateTime
+  startTime           DateTime
+  endTime             DateTime?
+  location            String
+  latitude            Float?
+  longitude           Float?
+  coverImageUrl       String?
+  maxAttendees        Int?          @default(10)
+  isPublic            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  host                User          @relation(fields: [hostId], references: [id])
+  hostId              String
+  rsvps               RSVP[]
+  reviews             Review[]
+  eventChats          EventChat[]
+  reports             Report[]      @relation("ReportedEventRelation")
+
+  // Indexes
+  @@index([hostId, date, location])
+  @@index([type, date])
+}
+
+model RSVP {
+  id                  String        @id @default(cuid())
+  status              RSVPStatus    @default(GOING)
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  user                User          @relation(fields: [userId], references: [id])
+  userId              String
+  event               Event         @relation(fields: [eventId], references: [id])
+  eventId             String
+
+  // Constraints
+  @@unique([userId, eventId])
+}
+
+model Review {
+  id                  String        @id @default(cuid())
+  rating              Int           // Application-level validation for 1-5 range
+  comment             String?
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  reviewer            User          @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewerId          String
+  reviewee            User          @relation("Reviewee", fields: [revieweeId], references: [id])
+  revieweeId          String
+  event               Event?        @relation(fields: [eventId], references: [id])
+  eventId             String?
+
+  // Constraints
+  @@unique([reviewerId, revieweeId, eventId])
+}
+
+// Social Interaction Models
+model Message {
+  id                  String        @id @default(cuid())
+  content             String
+  createdAt           DateTime      @default(now())
+  read                Boolean       @default(false)
+
+  // Relations
+  sender              User          @relation("SentMessages", fields: [senderId], references: [id])
+  senderId            String
+  receiver            User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId          String
+}
+
+model Friendship {
+  id                  String        @id @default(cuid())
+  status              String        @default("PENDING") // "PENDING", "ACCEPTED", "DECLINED"
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  requester           User          @relation("RequesterFriendships", fields: [requesterId], references: [id])
+  requesterId         String
+  recipient           User          @relation("RecipientFriendships", fields: [recipientId], references: [id])
+  recipientId         String
+
+  // Constraints
+  @@unique([requesterId, recipientId])
+}
+
+model EventChat {
+  id                  String        @id @default(cuid())
+  content             String
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  user                User          @relation(fields: [userId], references: [id])
+  userId              String
+  event               Event         @relation(fields: [eventId], references: [id])
+  eventId             String
+}
+
+// Safety Models
+model BlockedUser {
+  id                  String        @id @default(cuid())
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  blocker             User          @relation("BlockerRelation", fields: [blockerId], references: [id])
+  blockerId           String
+  blockedUser         User          @relation("BlockedUserRelation", fields: [blockedUserId], references: [id])
+  blockedUserId       String
+
+  // Constraints
+  @@unique([blockerId, blockedUserId])
+}
+
+model Report {
+  id                  String        @id @default(cuid())
+  reason              String
+  description         String?
+  status              String        @default("PENDING") // "PENDING", "RESOLVED", "DISMISSED"
+  createdAt           DateTime      @default(now())
+
+  // Relations
+  reporter            User          @relation("ReporterRelation", fields: [reporterId], references: [id])
+  reporterId          String
+  reportedUser        User?         @relation("ReportedUserRelation", fields: [reportedUserId], references: [id])
+  reportedUserId      String?
+  reportedEvent       Event?        @relation("ReportedEventRelation", fields: [reportedEventId], references: [id])
+  reportedEventId     String?
+}
