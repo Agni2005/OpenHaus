@@ -1,7 +1,6 @@
 // pages/api/webhooks/user-created.ts
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { headers } from 'next/headers';
 import { Webhook } from 'svix';
 import { buffer } from 'micro';
 import prisma from '@/lib/prisma';
@@ -11,6 +10,20 @@ export const config = {
     bodyParser: false,
   },
 };
+
+// Define the expected structure of the Clerk event
+interface ClerkEvent {
+  id: string;
+  type: string;
+  data: {
+    id: string;
+    email_addresses: { email_address: string }[];
+    username: string;
+    first_name: string;
+    last_name: string;
+    image_url: string;
+  };
+}
 
 const webhookSecret = process.env.CLERK_WEBHOOK_SECRET || '';
 
@@ -24,13 +37,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const wh = new Webhook(webhookSecret);
 
-  let evt;
+  let evt: ClerkEvent;
   try {
     evt = wh.verify(payload, {
       'svix-id': svix_id,
       'svix-timestamp': svix_timestamp,
       'svix-signature': svix_signature,
-    });
+    }) as ClerkEvent;
   } catch (err) {
     console.error('Webhook verification failed:', err);
     return res.status(400).json({ error: 'Invalid webhook' });
